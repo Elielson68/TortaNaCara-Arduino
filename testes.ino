@@ -7,10 +7,14 @@ const int ResetButton = 13;
 const int LeftLed = 2;
 const int RightLed = 4;
 
+const int ResetLed = 12;
+
 unsigned long tempoPressionadoEsquerdo = 0;
 unsigned long tempoPressionadoDireito = 0;
 
 bool hasPressed;
+bool debug;
+bool checkTimes;
 
 void setup()
 {
@@ -20,7 +24,10 @@ void setup()
 
 	pinMode(LeftLed, OUTPUT);
 	pinMode(RightLed, OUTPUT);
-	Serial.begin(9600);
+	pinMode(ResetLed, OUTPUT);
+	Serial.begin(115200);
+
+	Serial.println("Tempo esquerdo: " + String(tempoPressionadoEsquerdo) + " | Tempo direito: " + String(tempoPressionadoDireito));
 }
 
 void loop()
@@ -30,6 +37,11 @@ void loop()
 		RegisterTimeLeftPress();
 		RegisterTimeRightPress();
 		CheckWhichButtonHasFirstPress();
+		digitalWrite(ResetLed, HIGH);
+	}
+	else
+	{
+		digitalWrite(ResetLed, LOW);
 	}
 
 	if (hasPressed && digitalRead(ResetButton) == LOW)
@@ -37,41 +49,68 @@ void loop()
 		digitalWrite(RightLed, LOW);
 		digitalWrite(LeftLed, LOW);
 		hasPressed = false;
+		checkTimes = false;
+		debug = false;
+		tempoPressionadoDireito = 0;
+		tempoPressionadoEsquerdo = 0;
+		Serial.println("------------------------ RESET --------------------------");
 	}
 }
 
 void RegisterTimeLeftPress()
 {
-	if (digitalRead(LeftButton) && tempoPressionadoEsquerdo == 0)
+	if (digitalRead(LeftButton) == LOW)
 	{
+		Serial.println("Passou no esquerdo");
 		tempoPressionadoEsquerdo = millis();
 	}
 }
 
 void RegisterTimeRightPress()
 {
-	if (digitalRead(RightButton) == LOW && tempoPressionadoDireito == 0)
+	if (digitalRead(RightButton) == LOW)
 	{
+		Serial.println("Passou no direito");
 		tempoPressionadoDireito = millis();
 	}
 }
 
 void CheckWhichButtonHasFirstPress()
 {
-	Serial.println("Tempo esquerdo: " + String(tempoPressionadoEsquerdo) + " | Tempo direito: " + String(tempoPressionadoDireito));
-	hasPressed = true;
+	if (checkTimes || tempoPressionadoDireito == 0 && tempoPressionadoEsquerdo == 0)
+	{
+		return;
+	}
 
-	if (tempoPressionadoEsquerdo < tempoPressionadoDireito)
+	checkTimes = true;
+
+	if ((tempoPressionadoDireito > 0 || tempoPressionadoEsquerdo > 0) && debug == false)
+	{
+		debug = true;
+		Serial.println("Tempo esquerdo: " + String(tempoPressionadoEsquerdo) + " | Tempo direito: " + String(tempoPressionadoDireito));
+	}
+
+	if (tempoPressionadoDireito == 0)
 	{
 		digitalWrite(LeftLed, HIGH);
-		return;
+	}
+	else if (tempoPressionadoEsquerdo == 0)
+	{
+		digitalWrite(RightLed, HIGH);
+	}
+	else if (tempoPressionadoEsquerdo < tempoPressionadoDireito)
+	{
+		digitalWrite(LeftLed, HIGH);
 	}
 	else if (tempoPressionadoDireito < tempoPressionadoEsquerdo)
 	{
 		digitalWrite(RightLed, HIGH);
-		return;
+	}
+	else if (tempoPressionadoDireito > 0 && tempoPressionadoEsquerdo > 0 && abs(tempoPressionadoDireito - tempoPressionadoEsquerdo) == 10)
+	{
+		digitalWrite(RightLed, HIGH);
+		digitalWrite(LeftLed, HIGH);
 	}
 
-	digitalWrite(RightLed, HIGH);
-	digitalWrite(LeftLed, HIGH);
+	hasPressed = true;
 }
